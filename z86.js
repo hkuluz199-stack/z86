@@ -1,42 +1,38 @@
-// 2GB RAM Bloğu
-const RAM = new Uint8Array(2 * 1024 * 1024 * 1024);
+const RAM = new Uint8Array(2 * 1024 * 1024 * 1024); // 2GB RAM
 
 async function boot() {
-    console.log("z86: MSI BIOS yükleniyor...");
+    const statusDiv = document.getElementById('status');
+    const driveUrl = "https://drive.google.com/uc?export=download&id=1xJfpnLIkM8xGe8CF4jeu3XMWxsUOzurW";
+    
+    statusDiv.innerText = "BIOS Google Drive'dan indiriliyor...";
     
     try {
-        // BIOS dosyasını klasörden çekiyoruz
-        const response = await fetch('./bios/msi_bios.bin');
-        if (!response.ok) throw new Error("BIOS dosyası bulunamadı!");
+        const response = await fetch(driveUrl);
+        if (!response.ok) throw new Error("Dosya çekilemedi!");
         
-        const biosBuffer = await response.arrayBuffer();
-        const biosData = new Uint8Array(biosBuffer);
-
-        // MSI BIOS'u reset vektörüne (0xFFFF0000 civarına) yerleştir
+        const buffer = await response.arrayBuffer();
+        const biosData = new Uint8Array(buffer);
+        
+        // BIOS'u RAM'in sonuna (Reset Vektörü) yerleştir
         const biosStart = 0xFFFF0000 - biosData.length + 1;
         RAM.set(biosData, biosStart);
-
-        console.log("BIOS Başarıyla yüklendi! Boyut: " + biosData.length + " byte");
-        console.log("Başlangıç Adresi: 0x" + biosStart.toString(16).toUpperCase());
         
-        // İşlemciyi başlat
+        statusDiv.innerText = "Başarılı! BIOS Boyutu: " + biosData.length + " byte. İşlemci başlıyor...";
+        console.log("BIOS RAM'e yüklendi. Başlangıç: 0x" + biosStart.toString(16).toUpperCase());
+        
         runCpu(biosStart);
-        
     } catch (e) {
-        console.error("HATA: ", e.message);
+        statusDiv.innerText = "HATA: " + e.message;
+        console.error(e);
     }
 }
 
 function runCpu(ip) {
-    console.log("z86: İşlemci reset vektörüne atladı...");
+    let opcode = RAM[ip];
+    console.log("İşlemci BIOS'tan ilk komutu okudu: 0x" + opcode.toString(16).toUpperCase());
     
-    // İşlemci döngüsü (Fetch)
-    let opcode = RAM[ip]; 
-    console.log("BIOS'tan okunan ilk komut (Opcode): 0x" + opcode.toString(16).toUpperCase());
-    
-    if (opcode !== 0) {
-        console.log("BAŞARILI: İşlemci BIOS kodlarını okumaya başladı!");
-    } else {
-        console.log("UYARI: İşlemci boş veri (0x00) okuyor. BIOS adreslemesi yanlış olabilir.");
-    }
+    const ctx = document.getElementById('screen').getContext('2d');
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("BIOS YÜKLENDİ: " + ip.toString(16).toUpperCase(), 50, 50);
 }
