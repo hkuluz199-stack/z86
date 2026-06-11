@@ -2,15 +2,18 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>z86 Emülatör</title>
+    <title>MSI MAG Z790 - UEFI Emülatör</title>
+    <style>
+        body { background: #0b0e14; color: #ff004d; font-family: 'Segoe UI', monospace; padding: 30px; }
+        #console { background: #000; border: 1px solid #ff004d; padding: 15px; height: 300px; overflow-y: scroll; }
+    </style>
 </head>
 <body>
-    <h1>z86: BIOS Yükleyici</h1>
-    <input type="file" id="biosInput">
-    <button onclick="boot()">Sanal MSI'ı Başlat</button>
-    <p id="status">Dosya seç ve başlat'a bas.</p>
-    <canvas id="screen" width="640" height="480" style="border:1px solid #000;"></canvas>
-
+    <h1>MSI MAG Z790 TOMAHAWK WIFI - BIOS Yükleyici</h1>
+    <input type="file" id="biosInput" style="color:white;">
+    <button onclick="boot()" style="background:#ff004d; color:white; border:none; padding:10px;">YÜKLE VE BAŞLAT</button>
+    <h3>Sistem Konsolu:</h3>
+    <pre id="console"></pre>
     <script src="z86.js"></script>
 </body>
 </html>
