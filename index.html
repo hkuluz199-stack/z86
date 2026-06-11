@@ -2,18 +2,19 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>z86 MSI BIOS Emulator</title>
+    <title>z86 Emülatör</title>
     <style>
-        body { background: #111; color: #fff; font-family: sans-serif; text-align: center; padding: 20px; }
-        #screen { background: #000; border: 2px solid #444; margin-top: 20px; display: block; margin-left: auto; margin-right: auto; }
-        .info { color: #0f0; margin-top: 10px; }
+        body { background: #121212; color: #00ff00; font-family: monospace; text-align: center; padding: 50px; }
+        #screen { background: black; border: 2px solid #333; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>z86: MSI BIOS Emülatörü</h1>
-    <button onclick="boot()" style="padding: 15px 30px; font-size: 16px; cursor: pointer;">Sanal MSI'ı Başlat</button>
-    <div id="status" class="info">Hazır. Başlat'a basınız.</div>
-    <canvas id="screen" width="1080" height="1092"></canvas>
+    <h1>z86 BIOS Yükleyici</h1>
+    <input type="file" id="biosInput" style="color: white;">
+    <br><br>
+    <button onclick="boot()" style="padding: 10px 20px; cursor: pointer;">Sanal MSI'ı Başlat</button>
+    <p id="status">Hazır. BIOS dosyanı seç ve başlat.</p>
+    <canvas id="screen" width="800" height="600"></canvas>
 
     <script src="z86.js"></script>
 </body>
