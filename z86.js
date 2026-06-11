@@ -1,29 +1,24 @@
+const RAM = new Uint8Array(2 * 1024 * 1024 * 1024);
+
 async function boot() {
     const fileInput = document.getElementById('biosInput');
-    const statusDiv = document.getElementById('status');
-
-    if (!fileInput.files[0]) {
-        alert("Lütfen önce BIOS dosyasını seç!");
+    if (fileInput.files.length === 0) {
+        alert("Önce BIOS dosyasını seç!");
         return;
     }
 
     const file = fileInput.files[0];
-    const reader = new FileReader();
+    const buffer = await file.arrayBuffer();
+    const biosData = new Uint8Array(buffer);
 
-    statusDiv.innerText = "BIOS RAM'e yükleniyor, lütfen bekle...";
+    // RAM'e yaz
+    const biosStart = 0xFFFF0000 - biosData.length + 1;
+    RAM.set(biosData, biosStart);
 
-    reader.onload = function(e) {
-        const biosData = new Uint8Array(e.target.result);
-        const biosStart = 0xFFFF0000 - biosData.length + 1;
-        
-        // RAM'e yaz
-        RAM.set(biosData, biosStart);
-        
-        statusDiv.innerText = "Başarılı! " + biosData.length + " bayt RAM'e yazıldı.";
-        console.log("BIOS başarıyla RAM'e yüklendi. Başlangıç adresi: 0x" + biosStart.toString(16).toUpperCase());
-        
-        runCpu(biosStart);
-    };
-
-    reader.readAsArrayBuffer(file);
+    console.log("BIOS Yüklendi! Boyut: " + biosData.length);
+    console.log("CPU 0x" + biosStart.toString(16) + " adresinden başlıyor.");
+    
+    // Ekrana ilk komutu bas
+    document.getElementById('screen').getContext('2d').fillStyle = "white";
+    document.getElementById('screen').getContext('2d').fillText("MSI BIOS Z86 LOADED...", 50, 50);
 }
