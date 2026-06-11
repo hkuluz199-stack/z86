@@ -3,18 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>z86 Emülatör</title>
-    <style>
-        body { background: #121212; color: #00ff00; font-family: monospace; text-align: center; padding: 50px; }
-        #screen { background: black; border: 2px solid #333; margin-top: 20px; }
-    </style>
 </head>
 <body>
-    <h1>z86 BIOS Yükleyici</h1>
-    <input type="file" id="biosInput" style="color: white;">
-    <br><br>
-    <button onclick="boot()" style="padding: 10px 20px; cursor: pointer;">Sanal MSI'ı Başlat</button>
-    <p id="status">Hazır. BIOS dosyanı seç ve başlat.</p>
-    <canvas id="screen" width="800" height="600"></canvas>
+    <h1>z86: BIOS Yükleyici</h1>
+    <input type="file" id="biosInput">
+    <button onclick="boot()">Sanal MSI'ı Başlat</button>
+    <p id="status">Dosya seç ve başlat'a bas.</p>
+    <canvas id="screen" width="640" height="480" style="border:1px solid #000;"></canvas>
 
     <script src="z86.js"></script>
 </body>
