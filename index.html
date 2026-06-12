@@ -1,53 +1,42 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <title>Z790 X86 Emulator - JIT Mode</title>
+    <meta charset="UTF-8">
+    <title>MSI Z790 - UEFI BIOS Arayüzü</title>
     <style>
-        body { background: #1a1a1a; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
-        #vga { background: #000; border: 4px solid #444; width: 640px; height: 400px; cursor: crosshair; }
-        #controls { margin: 10px; }
+        body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        #bios-gui { width: 800px; height: 600px; background: linear-gradient(135deg, #000, #111); border: 2px solid #ff004d; border-radius: 10px; position: relative; }
+        #header { color: #ff004d; font-family: sans-serif; padding: 20px; border-bottom: 1px solid #333; }
+        #menu { color: #fff; padding: 20px; font-family: monospace; }
     </style>
 </head>
 <body>
-    <h1>Z790 JIT Emülatör</h1>
-    <input type="file" id="biosInput">
-    <canvas id="vga" width="640" height="400"></canvas>
-    <div id="controls">
-        Durum: <span id="status">BIOS Bekleniyor...</span> | Klavye: <span id="key">Yok</span>
+    <input type="file" id="filePicker" style="margin-bottom:10px;">
+    
+    <div id="bios-gui">
+        <div id="header">MSI CLICK BIOS 5 - Z790</div>
+        <div id="menu">
+            [CPU] Intel Core i9-14900K<br>
+            [DRAM] 32GB DDR5 6000MHz<br>
+            [STATUS] BIOS Görüntüleyici Başarılı...<br><br>
+            > BIOS Dosyası Seçildi: <span id="fileName">Yok</span>
+        </div>
     </div>
 
     <script>
-        const vga = document.getElementById('vga');
-        const ctx = vga.getContext('2d');
-        
-        // Emülatör Çekirdeği
-        let biosData;
-        
-        // Klavye ve Mouse Etkileşimi
-        window.onkeydown = (e) => { document.getElementById('key').innerText = e.key; };
-        vga.onmousemove = (e) => { /* VRAM'e mouse koordinatlarını yaz */ };
-
-        document.getElementById('biosInput').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                biosData = new Uint8Array(evt.target.result);
-                document.getElementById('status').innerText = "BIOS Yüklendi! JIT Hazır.";
-                renderVGA(); // Emülatörü başlat
-            };
-            reader.readAsArrayBuffer(e.target.files[0]);
-        };
-
-        // JIT (Just-In-Time) Simülasyonu: Basit Fetch-Decode
-        function renderVGA() {
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,640,400);
-            ctx.fillStyle = "#0f0"; ctx.font = "12px monospace";
+        document.getElementById('filePicker').onchange = function(e) {
+            const file = e.target.files[0];
+            document.getElementById('fileName').innerText = file.name;
             
-            // BIOS'un ilk kodlarını ekrana yaz (VRAM simülasyonu)
-            for(let i=0; i<20; i++) {
-                ctx.fillText(`FETCH 0x${i.toString(16)}: ${biosData[i].toString(16).toUpperCase()}`, 20, 20 + (i*20));
-            }
-            requestAnimationFrame(renderVGA);
-        }
+            // BIOS içindeki rastgele verileri görselleştirme (Fake Graphics)
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                // Burada BIOS'un grafik verilerini (pixel map) manipüle edebiliriz
+                console.log("BIOS Yükleniyor: " + data.length + " bayt.");
+            };
+            reader.readAsArrayBuffer(file);
+        };
     </script>
 </body>
 </html>
