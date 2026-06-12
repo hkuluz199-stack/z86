@@ -2,58 +2,61 @@
 <html lang="tr">
 <head>
     <style>
-        body { background: #050505; color: #00ff00; font-family: 'Courier New', monospace; }
-        #console { width: 90%; height: 80vh; border: 1px solid #333; background: #000; padding: 10px; overflow-y: scroll; white-space: pre-wrap; font-size: 12px; }
+        body { background: #111; color: #0f0; display: flex; flex-direction: column; align-items: center; }
+        canvas { border: 2px solid #ff004d; background: #000; image-rendering: pixelated; }
+        #log { width: 800px; height: 150px; background: #000; color: #fff; font-size: 10px; overflow: hidden; border: 1px solid #333; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>MSI Z790 - FULL X86 EMULATOR ENGINE</h1>
+    <h1>MSI Z790 - VGA GRAPHICS CORE</h1>
     <input type="file" id="biosInput">
-    <div id="console">Sistem Bekleniyor...</div>
+    <canvas id="vga" width="640" height="480"></canvas>
+    <div id="log">Sistem Bekleniyor...</div>
 
     <script>
-        const log = document.getElementById('console');
-        let cpu = { IP: 0x500, AX: 0, BX: 0, CX: 0, DX: 0, running: false };
+        const canvas = document.getElementById('vga');
+        const ctx = canvas.getContext('2d');
+        const log = document.getElementById('log');
+        
+        // VGA / VRAM Mimarisi (640x480 - BIOS Standart)
+        let vram = new Uint8ClampedArray(640 * 480 * 4);
+        let cpu = { IP: 0x500, AX: 0, running: false };
+
+        function updateDisplay() {
+            let imgData = new ImageData(vram, 640, 480);
+            ctx.putImageData(imgData, 0, 0);
+        }
 
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const rom = new Uint8Array(evt.target.result);
-                runEmulator(rom);
+                cpu.running = true;
+                emulate(rom);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function runEmulator(rom) {
-            log.innerText = "Emülasyon Başlatıldı...\n";
-            cpu.running = true;
-
-            const interval = setInterval(() => {
-                if (!cpu.running || cpu.IP >= rom.length) {
-                    clearInterval(interval);
-                    log.innerText += "\n--- SİSTEM DURDURULDU (EOF) ---";
-                    return;
-                }
+        function emulate(rom) {
+            setInterval(() => {
+                if (!cpu.running) return;
+                
+                // BIOS Döngüsü (Reset/Boot Loop)
+                if (cpu.IP >= rom.length) cpu.IP = 0x500;
 
                 let op = rom[cpu.IP];
-                let msg = `IP:0x${cpu.IP.toString(16).toUpperCase().padStart(4, '0')} | OP:0x${op.toString(16).toUpperCase().padStart(2, '0')} | `;
-
-                // GERÇEK İŞLEMCİ MANTIĞI (EXECUTION ENGINE)
-                switch(op) {
-                    case 0xB8: cpu.AX = (rom[cpu.IP+2] << 8) | rom[cpu.IP+1]; msg += "MOV AX, imm16"; cpu.IP += 3; break;
-                    case 0x90: msg += "NOP (Boşta)"; cpu.IP++; break;
-                    case 0x05: cpu.AX += (rom[cpu.IP+2] << 8) | rom[cpu.IP+1]; msg += "ADD AX, imm16"; cpu.IP += 3; break;
-                    case 0xEB: cpu.IP += rom[cpu.IP+1]; msg += "JMP (Atla)"; break;
-                    case 0x40: cpu.AX++; msg += "INC AX"; cpu.IP++; break;
-                    case 0xFF: msg += "CALL (Alt Rutin)"; cpu.IP++; break;
-                    case 0x00: msg += "NOP/DATA"; cpu.IP++; break;
-                    default:   msg += "DATA/CONFIG"; cpu.IP++;
+                
+                // VGA KESMESİ (INT 10h) - Grafik motorunu tetikle
+                if (op === 0xCD && rom[cpu.IP + 1] === 0x10) {
+                    log.innerText = "BIOS: EKRAN KARTI KOMUTU (INT 10h) ALINDI!\n" + log.innerText;
+                    // VRAM'e sanal bir renk bas (örnek: MSI kırmızı)
+                    for(let i=0; i<vram.length; i+=4) { vram[i]=255; vram[i+3]=255; }
+                    updateDisplay();
                 }
 
-                log.innerText += msg + "\n";
-                if(log.scrollTop > 5000) log.innerText = ""; // Bellek boşaltma
-                log.scrollTop = log.scrollHeight;
-            }, 10); // Hız ayarı (10ms)
+                // Komut İşleme
+                cpu.IP++;
+            }, 1);
         }
     </script>
 </body>
