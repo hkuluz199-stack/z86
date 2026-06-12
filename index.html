@@ -1,31 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>MSI Z790 - Sanal Anakart</title>
+    <style>
+        body { background: #0b0e14; color: #fff; font-family: monospace; }
+        #board { display: flex; flex-direction: column; align-items: center; }
+        canvas { border: 2px solid #ff004d; background: #000; margin-bottom: 10px; }
+        #stats { color: #0f0; background: #000; padding: 10px; border: 1px solid #333; width: 640px; }
+    </style>
+</head>
 <body>
-    <h1>BIOS Analizcisi</h1>
-    <input type="file" id="biosInput">
-    <div id="log" style="color:red; font-family:monospace; margin-top:20px;"></div>
+    <div id="board">
+        <h1>MSI MAG Z790 - Sanal Donanım</h1>
+        <input type="file" id="biosInput">
+        <canvas id="bios-screen" width="640" height="400"></canvas>
+        <div id="stats">Donanım Bekliyor...</div>
+    </div>
 
     <script>
-        const input = document.getElementById('biosInput');
-        const logDiv = document.getElementById('log');
+        // --- DONANIM KATMANI ---
+        const RAM = new Uint8Array(64 * 1024 * 1024); // 64MB RAM
+        const ROM = new Uint8Array(16 * 1024 * 1024); // 16MB BIOS ROM
+        let CPU = { IP: 0, AX: 0, BX: 0 }; // İşlemci Kaydedicileri
 
-        input.onchange = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        const canvas = document.getElementById('bios-screen');
+        const ctx = canvas.getContext('2d');
+        const stats = document.getElementById('stats');
 
-            logDiv.innerText = "Dosya algılandı: " + file.name + "\n";
-            
+        document.getElementById('biosInput').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(evt) {
-                const arr = new Uint8Array(evt.target.result);
-                let hexOutput = "İçerik (ilk 20 bayt): ";
-                for(let i=0; i<20; i++) {
-                    hexOutput += arr[i].toString(16).toUpperCase().padStart(2, '0') + " ";
-                }
-                logDiv.innerText += hexOutput;
+                // BIOS'u ROM'a yükle
+                const biosData = new Uint8Array(evt.target.result);
+                ROM.set(biosData, 0);
+                
+                stats.innerText = `Sistem Hazır. RAM: 64MB, ROM: 16MB. BIOS yüklendi: ${biosData.length} bayt.`;
+                bootSystem();
             };
-            reader.readAsArrayBuffer(file);
-        };
+            reader.readAsArrayBuffer(e.target.files[0]);
+        });
+
+        function bootSystem() {
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,640,400);
+            ctx.fillStyle = "#ff004d"; ctx.font = "20px Arial";
+            ctx.fillText("MSI MAG Z790 - SANAL DONANIM BAŞLATILDI", 50, 50);
+            
+            // İşlemci "Fetch" döngüsü
+            for(let i=0; i<10; i++) {
+                let instruction = ROM[CPU.IP];
+                stats.innerText += `\nCPU Fetch [0x${CPU.IP.toString(16)}]: 0x${instruction.toString(16).toUpperCase()}`;
+                CPU.IP++;
+            }
+        }
     </script>
 </body>
 </html>
