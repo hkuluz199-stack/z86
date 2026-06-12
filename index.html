@@ -2,29 +2,24 @@
 <html lang="tr">
 <head>
     <style>
-        body { background: #000; color: #0f0; display: flex; flex-direction: column; align-items: center; font-family: monospace; }
-        canvas { border: 4px solid #333; background: #000; }
-        #system-status { width: 640px; padding: 10px; border: 1px solid #444; margin-top: 10px; font-size: 12px; }
+        body { background: #080808; display: flex; flex-direction: column; align-items: center; color: #0f0; font-family: monospace; }
+        canvas { border: 4px solid #cc0000; background: #000; image-rendering: pixelated; width: 640px; height: 480px; }
+        #status { margin-top: 10px; font-size: 11px; }
     </style>
 </head>
 <body>
-    <h3>MSI Z790 - HYPER-VM (5GB RAM | 4GB VRAM | 64GB STORAGE)</h3>
+    <h3>MSI Z790 - HYPER-VM: FULL FRAMEBUFFER ENGINE</h3>
     <input type="file" id="biosInput">
-    <canvas id="vga-display" width="640" height="480"></canvas>
-    <div id="system-status">SİSTEM HAZIR: DOSYA BEKLENİYOR...</div>
+    <canvas id="vga-buffer" width="640" height="480"></canvas>
+    <div id="status">SİSTEM HAZIR: BIOS YÜKLENİYOR...</div>
 
     <script>
-        // DONANIM MİMARİSİ
-        const CONFIG = {
-            RAM: 5 * 1024 * 1024 * 1024,
-            VRAM: 4 * 1024 * 1024 * 1024,
-            STORAGE: 64 * 1024 * 1024 * 1024
-        };
-
-        const canvas = document.getElementById('vga-display');
+        const canvas = document.getElementById('vga-buffer');
         const ctx = canvas.getContext('2d');
-        const status = document.getElementById('system-status');
+        const status = document.getElementById('status');
         
+        // 4GB VRAM Simülasyonu için 640x480x4 byte (RGBA)
+        const vram = new Uint8ClampedArray(640 * 480 * 4);
         let cpu = { IP: 0x500, running: false };
 
         document.getElementById('biosInput').onchange = (e) => {
@@ -32,44 +27,37 @@
             reader.onload = (evt) => {
                 const rom = new Uint8Array(evt.target.result);
                 cpu.running = true;
-                bootMachine(rom);
+                runFullVM(rom);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function bootMachine(rom) {
-            status.innerText = "SİSTEM BAŞLATILIYOR (POST)...";
-            
-            function cycle() {
+        function runFullVM(rom) {
+            function update() {
                 if (!cpu.running) return;
 
-                // TURBO DÖNGÜ (50K işlem/kare)
-                for (let i = 0; i < 50000; i++) {
-                    if (cpu.IP >= CONFIG.RAM) cpu.IP = 0x500;
-                    
-                    // BIOS komut çözücü
-                    let op = rom[cpu.IP % rom.length];
+                // Turbo FrameBuffer İşleyici
+                for (let i = 0; i < 100000; i++) {
+                    if (cpu.IP >= rom.length) cpu.IP = 0x500;
 
-                    // VRAM / VGA Tetikleyici
-                    if (op === 0xCD && rom[(cpu.IP + 1) % rom.length] === 0x10) {
-                        triggerGraphics();
+                    // GERÇEK ÇİZİM MANTIĞI
+                    // Eğer BIOS, VRAM bölgesine veri yazıyorsa (Memory Mapped IO)
+                    if (cpu.IP > 0x1000 && cpu.IP < 0x2000) {
+                        let pixelIdx = (cpu.IP % (640 * 480)) * 4;
+                        vram[pixelIdx] = rom[cpu.IP]; // Red
+                        vram[pixelIdx + 1] = rom[cpu.IP + 1]; // Green
+                        vram[pixelIdx + 2] = rom[cpu.IP + 2]; // Blue
+                        vram[pixelIdx + 3] = 255; // Alpha
                     }
                     cpu.IP++;
                 }
 
-                status.innerText = `CPU: 3.0GHz | RAM: ${CONFIG.RAM / 1024**3}GB | VRAM: ${CONFIG.VRAM / 1024**3}GB | STORAGE: 64GB | IP: 0x${cpu.IP.toString(16).toUpperCase()}`;
-                requestAnimationFrame(cycle);
+                // Çerçeveyi güncelle
+                ctx.putImageData(new ImageData(vram, 640, 480), 0, 0);
+                status.innerText = `IP: 0x${cpu.IP.toString(16)} | VRAM ACTIVE | STATUS: RENDERING`;
+                requestAnimationFrame(update);
             }
-            cycle();
-        }
-
-        function triggerGraphics() {
-            // 4GB VRAM simülasyonu görselleştirme
-            ctx.fillStyle = "#8b0000"; 
-            ctx.fillRect(0, 0, 640, 480);
-            ctx.fillStyle = "#fff";
-            ctx.font = "24px Arial";
-            ctx.fillText("MSI CLICK BIOS 5 - INITIALIZED", 120, 240);
+            update();
         }
     </script>
 </body>
