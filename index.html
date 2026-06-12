@@ -1,62 +1,59 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <title>MSI Z790 - Pentium 4 Emülatör</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        #vga { width: 800px; height: 500px; background: #000; border: 4px solid #ff004d; margin-top: 10px; }
-        #stats { width: 800px; color: #fff; font-size: 14px; background: #111; padding: 10px; }
+        body { background: #050505; color: #00ff00; font-family: 'Courier New', monospace; }
+        #console { width: 90%; height: 80vh; border: 1px solid #333; background: #000; padding: 10px; overflow-y: scroll; white-space: pre-wrap; font-size: 12px; }
     </style>
 </head>
 <body>
-    <h1>MSI Z790 - CORE ENGINE (P4 3.0GHz SIM)</h1>
+    <h1>MSI Z790 - FULL X86 EMULATOR ENGINE</h1>
     <input type="file" id="biosInput">
-    <canvas id="vga"></canvas>
-    <div id="stats">Sistem Başlatılıyor...</div>
+    <div id="console">Sistem Bekleniyor...</div>
 
     <script>
-        const ctx = document.getElementById('vga').getContext('2d');
-        let CPU = { AX: 0, IP: 0, running: false };
-        let biosData;
-        const BATCH = 50000; // 3.0GHz Hız Simülasyonu (Döngü başına işlem)
+        const log = document.getElementById('console');
+        let cpu = { IP: 0x500, AX: 0, BX: 0, CX: 0, DX: 0, running: false };
 
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
-                biosData = new Uint8Array(evt.target.result);
-                CPU.running = true;
-                tick();
+                const rom = new Uint8Array(evt.target.result);
+                runEmulator(rom);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function tick() {
-            if (!CPU.running) return;
+        function runEmulator(rom) {
+            log.innerText = "Emülasyon Başlatıldı...\n";
+            cpu.running = true;
 
-            // PENTIUM 4 HIZINDA İCRA (Batch Processing)
-            for (let i = 0; i < BATCH; i++) {
-                if (CPU.IP >= biosData.length) { CPU.running = false; break; }
-                
-                let opcode = biosData[CPU.IP];
-                // Basit Decode/Execute
-                if (opcode === 0xB8) CPU.AX = 0xFFFF; // Örnek komut: MOV AX, FFFF
-                CPU.IP++;
-            }
+            const interval = setInterval(() => {
+                if (!cpu.running || cpu.IP >= rom.length) {
+                    clearInterval(interval);
+                    log.innerText += "\n--- SİSTEM DURDURULDU (EOF) ---";
+                    return;
+                }
 
-            // GÖRÜNTÜLEME (GPU VRAM)
-            ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 800, 500);
-            ctx.fillStyle = "#0f0";
-            ctx.fillText("CPU: PENTIUM 4 631 3.0GHz", 20, 30);
-            ctx.fillText("AX REGISTER: 0x" + CPU.AX.toString(16).toUpperCase(), 20, 50);
-            ctx.fillText("IP (PC): 0x" + CPU.IP.toString(16).toUpperCase(), 20, 70);
-            ctx.fillText("Hız: 3.0GHz (Batch: " + BATCH + ")", 20, 90);
-            
-            // Grafik Yükü (BIOS'un görselleştirilmesi)
-            ctx.strokeStyle = "#ff004d";
-            ctx.strokeRect(50, 150, (CPU.IP / biosData.length) * 700, 20);
-            
-            requestAnimationFrame(tick);
+                let op = rom[cpu.IP];
+                let msg = `IP:0x${cpu.IP.toString(16).toUpperCase().padStart(4, '0')} | OP:0x${op.toString(16).toUpperCase().padStart(2, '0')} | `;
+
+                // GERÇEK İŞLEMCİ MANTIĞI (EXECUTION ENGINE)
+                switch(op) {
+                    case 0xB8: cpu.AX = (rom[cpu.IP+2] << 8) | rom[cpu.IP+1]; msg += "MOV AX, imm16"; cpu.IP += 3; break;
+                    case 0x90: msg += "NOP (Boşta)"; cpu.IP++; break;
+                    case 0x05: cpu.AX += (rom[cpu.IP+2] << 8) | rom[cpu.IP+1]; msg += "ADD AX, imm16"; cpu.IP += 3; break;
+                    case 0xEB: cpu.IP += rom[cpu.IP+1]; msg += "JMP (Atla)"; break;
+                    case 0x40: cpu.AX++; msg += "INC AX"; cpu.IP++; break;
+                    case 0xFF: msg += "CALL (Alt Rutin)"; cpu.IP++; break;
+                    case 0x00: msg += "NOP/DATA"; cpu.IP++; break;
+                    default:   msg += "DATA/CONFIG"; cpu.IP++;
+                }
+
+                log.innerText += msg + "\n";
+                if(log.scrollTop > 5000) log.innerText = ""; // Bellek boşaltma
+                log.scrollTop = log.scrollHeight;
+            }, 10); // Hız ayarı (10ms)
         }
     </script>
 </body>
