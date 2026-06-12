@@ -2,62 +2,68 @@
 <html lang="tr">
 <head>
     <style>
-        body { background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
-        canvas { border: 4px solid #444; background: #000; image-rendering: pixelated; width: 640px; height: 480px; }
-        #status { margin-top: 10px; color: #fff; font-size: 14px; }
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; }
+        canvas { border: 4px solid #333; background: #000; image-rendering: pixelated; width: 640px; height: 480px; }
+        #monitor { margin-top: 10px; padding: 5px; border: 1px solid #555; }
     </style>
 </head>
 <body>
-    <h3>MSI Z790 - HYPER-VM (DECODER ACTIVE)</h3>
+    <h3>MSI HYPER-VM: 60Hz RENDER ENGINE</h3>
     <input type="file" id="biosInput">
-    <canvas id="vm-canvas" width="640" height="480"></canvas>
-    <div id="status">STATUS: WAITING FOR BIOS DATA...</div>
+    <canvas id="vm-canvas" width="320" height="200"></canvas>
+    <div id="monitor">MONITOR: 60Hz | STATUS: SYNCING...</div>
 
     <script>
         const canvas = document.getElementById('vm-canvas');
         const ctx = canvas.getContext('2d');
-        const status = document.getElementById('status');
-        
-        // RLE Decoder: Sıkıştırılmış veriyi çözer, paraziti temizler
-        function decodeRLE(rom, startAddr) {
-            let decoded = new Uint8ClampedArray(640 * 480 * 4);
-            let pixelPtr = 0;
-            let romPtr = startAddr;
-
-            while (pixelPtr < decoded.length && romPtr < rom.length - 4) {
-                let count = rom[romPtr];   // Tekrar sayısı
-                let r = rom[romPtr + 1];   // Kırmızı
-                let g = rom[romPtr + 2];   // Yeşil
-                let b = rom[romPtr + 3];   // Mavi
-                
-                // Parazit önleme: Eğer count çok büyükse (geçersiz blok) atla
-                if (count > 0 && count < 255) {
-                    for (let i = 0; i < count; i++) {
-                        if (pixelPtr < decoded.length) {
-                            decoded[pixelPtr] = r;
-                            decoded[pixelPtr + 1] = g;
-                            decoded[pixelPtr + 2] = b;
-                            decoded[pixelPtr + 3] = 255;
-                            pixelPtr += 4;
-                        }
-                    }
-                }
-                romPtr += 4; 
-            }
-            return decoded;
-        }
+        const monitor = document.getElementById('monitor');
+        let romData = null;
 
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
-                const rom = new Uint8Array(evt.target.result);
-                // BIOS'un grafik tablosu genelde 0x5000 offset'inden başlar
-                const imgData = new ImageData(decodeRLE(rom, 0x5000), 640, 480);
-                ctx.putImageData(imgData, 0, 0);
-                status.innerText = "STATUS: DECODING COMPLETE. FRAME RENDERED.";
+                romData = new Uint8Array(evt.target.result);
+                // 60Hz Render Döngüsünü Başlat
+                requestAnimationFrame(renderLoop);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
+
+        function renderLoop() {
+            if (!romData) return;
+
+            // BIOS Modunu her karede kontrol et (60 FPS'de tepki süresi)
+            let mode = romData[0x10] === 0x07 ? "TEXT" : "VGA";
+            
+            if (mode === "TEXT") {
+                renderTextMode();
+            } else {
+                renderVgaMode();
+            }
+
+            monitor.innerText = `MONITOR: 60Hz | MODE: ${mode} | SYNC: OK`;
+            requestAnimationFrame(renderLoop); // 60 FPS'de yenile
+        }
+
+        function renderTextMode() {
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,200);
+            ctx.fillStyle = "#0f0"; ctx.font = "12px monospace";
+            for(let i=0; i<20; i++) {
+                ctx.fillText(String.fromCharCode(romData[0x500+i] || 32), (i%20)*12, Math.floor(i/20)*16 + 16);
+            }
+        }
+
+        function renderVgaMode() {
+            const imgData = ctx.createImageData(320, 200);
+            for (let i = 0; i < 320 * 200; i++) {
+                let addr = 0x5000 + (i % (romData.length - 0x5000));
+                imgData.data[i*4] = romData[addr];
+                imgData.data[i*4+1] = romData[addr+1];
+                imgData.data[i*4+2] = romData[addr+2];
+                imgData.data[i*4+3] = 255;
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
     </script>
 </body>
 </html>
