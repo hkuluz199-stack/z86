@@ -3,69 +3,61 @@
 <head>
     <style>
         body { background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
-        canvas { border: 2px solid #555; background: #000; }
-        #status { margin-top: 10px; color: #fff; }
+        canvas { border: 4px solid #444; background: #000; image-rendering: pixelated; width: 640px; height: 480px; }
+        #status { margin-top: 10px; color: #fff; font-size: 14px; }
     </style>
 </head>
 <body>
-    <h3>MSI Z790 - HYPER-VM (SMART RGB MODE)</h3>
+    <h3>MSI Z790 - HYPER-VM (DECODER ACTIVE)</h3>
     <input type="file" id="biosInput">
     <canvas id="vm-canvas" width="640" height="480"></canvas>
-    <div id="status">GPU STATUS: WAITING FOR COMMAND...</div>
+    <div id="status">STATUS: WAITING FOR BIOS DATA...</div>
 
     <script>
         const canvas = document.getElementById('vm-canvas');
         const ctx = canvas.getContext('2d');
         const status = document.getElementById('status');
-        const vram = new Uint8ClampedArray(640 * 480 * 4);
-        let cpu = { IP: 0x500, running: false };
+        
+        // RLE Decoder: Sıkıştırılmış veriyi çözer, paraziti temizler
+        function decodeRLE(rom, startAddr) {
+            let decoded = new Uint8ClampedArray(640 * 480 * 4);
+            let pixelPtr = 0;
+            let romPtr = startAddr;
+
+            while (pixelPtr < decoded.length && romPtr < rom.length - 4) {
+                let count = rom[romPtr];   // Tekrar sayısı
+                let r = rom[romPtr + 1];   // Kırmızı
+                let g = rom[romPtr + 2];   // Yeşil
+                let b = rom[romPtr + 3];   // Mavi
+                
+                // Parazit önleme: Eğer count çok büyükse (geçersiz blok) atla
+                if (count > 0 && count < 255) {
+                    for (let i = 0; i < count; i++) {
+                        if (pixelPtr < decoded.length) {
+                            decoded[pixelPtr] = r;
+                            decoded[pixelPtr + 1] = g;
+                            decoded[pixelPtr + 2] = b;
+                            decoded[pixelPtr + 3] = 255;
+                            pixelPtr += 4;
+                        }
+                    }
+                }
+                romPtr += 4; 
+            }
+            return decoded;
+        }
 
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const rom = new Uint8Array(evt.target.result);
-                cpu.running = true;
-                initSmartVM(rom);
+                // BIOS'un grafik tablosu genelde 0x5000 offset'inden başlar
+                const imgData = new ImageData(decodeRLE(rom, 0x5000), 640, 480);
+                ctx.putImageData(imgData, 0, 0);
+                status.innerText = "STATUS: DECODING COMPLETE. FRAME RENDERED.";
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
-
-        function initSmartVM(rom) {
-            function loop() {
-                if (!cpu.running) return;
-
-                for (let i = 0; i < 50000; i++) {
-                    if (cpu.IP >= rom.length) cpu.IP = 0x500;
-
-                    // AKILLI GPU: Sadece INT 10h gelince tetiklen
-                    if (rom[cpu.IP] === 0xCD && rom[cpu.IP + 1] === 0x10) {
-                        renderRGBFrame(rom, cpu.IP);
-                        status.innerText = "GPU STATUS: RENDERING RGB FRAME...";
-                    }
-                    cpu.IP++;
-                }
-                requestAnimationFrame(loop);
-            }
-            loop();
-        }
-
-        // SADECE RGB İŞLEYEN RENDERER
-        function renderRGBFrame(rom, startAddr) {
-            let dataOffset = startAddr + 0x200; // BIOS grafik verisinin başlangıcı
-            
-            for (let i = 0; i < (640 * 480); i++) {
-                let pixelIdx = i * 4;
-                let romIdx = dataOffset + (i * 3);
-
-                if (romIdx + 2 < rom.length) {
-                    vram[pixelIdx] = rom[romIdx];     // R
-                    vram[pixelIdx + 1] = rom[romIdx + 1]; // G
-                    vram[pixelIdx + 2] = rom[romIdx + 2]; // B
-                    vram[pixelIdx + 3] = 255;         // Alpha
-                }
-            }
-            ctx.putImageData(new ImageData(vram, 640, 480), 0, 0);
-        }
     </script>
 </body>
 </html>
