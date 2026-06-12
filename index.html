@@ -1,19 +1,31 @@
 <!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>MSI Z790 Emülatör</title>
-    <style>
-        body { background: #000; color: #0f0; font-family: monospace; }
-        #output { border: 1px solid #333; height: 400px; overflow-y: scroll; padding: 10px; }
-    </style>
-</head>
+<html>
 <body>
-    <h1>MSI MAG Z790 - BIOS Analyzer</h1>
+    <h1>BIOS Analizcisi</h1>
     <input type="file" id="biosInput">
-    <button id="startBtn">BAŞLAT</button>
-    <div id="output"></div>
+    <div id="log" style="color:red; font-family:monospace; margin-top:20px;"></div>
 
-    <script src="z86.js"></script>
+    <script>
+        const input = document.getElementById('biosInput');
+        const logDiv = document.getElementById('log');
+
+        input.onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            logDiv.innerText = "Dosya algılandı: " + file.name + "\n";
+            
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const arr = new Uint8Array(evt.target.result);
+                let hexOutput = "İçerik (ilk 20 bayt): ";
+                for(let i=0; i<20; i++) {
+                    hexOutput += arr[i].toString(16).toUpperCase().padStart(2, '0') + " ";
+                }
+                logDiv.innerText += hexOutput;
+            };
+            reader.readAsArrayBuffer(file);
+        };
+    </script>
 </body>
 </html>
