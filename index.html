@@ -1,60 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
     <style>
-        body { background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
-        canvas { border: 2px solid #ff004d; background: #000; width: 640px; height: 400px; }
-        #debug { color: #fff; margin-top: 10px; }
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; }
+        #monitor { width: 640px; height: 400px; border: 2px solid #333; background: #000; color: #0f0; padding: 10px; overflow-y: scroll; font-size: 14px; }
     </style>
 </head>
 <body>
-    <h1>MSI Z790 - EKRAN KARTI & CPU İCRA BİRİMİ</h1>
+    <h1>Z790 BARE-METAL EMÜLATÖR</h1>
     <input type="file" id="biosInput">
-    <canvas id="screen"></canvas>
-    <div id="debug">SİSTEM HAZIR...</div>
+    <div id="monitor">Sistem BIOS bekleniyor...</div>
 
     <script>
-        const canvas = document.getElementById('screen');
-        const ctx = canvas.getContext('2d');
-        let CPU = { AX: 0, IP: 0 };
-        let biosData;
-
+        const monitor = document.getElementById('monitor');
+        
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
-                biosData = new Uint8Array(evt.target.result);
-                // İşlemciyi Başlat
-                requestAnimationFrame(tick);
+                const rom = new Uint8Array(evt.target.result);
+                execute(rom);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function tick() {
-            if(!biosData) return;
+        function execute(rom) {
+            let IP = 0; // Instruction Pointer
+            let registers = { AX: 0, BX: 0 };
+            monitor.innerHTML = "--- EMÜLASYON BAŞLATILDI ---\n";
 
-            // FETCH: Veriyi al
-            let opcode = biosData[CPU.IP];
-            
-            // EXECUTE: Komutu işle
-            if(opcode === 0xB8) { // MOV AX, imm16
-                CPU.AX = (biosData[CPU.IP+2] << 8) | biosData[CPU.IP+1];
-                CPU.IP += 3;
-            } else {
-                CPU.IP++;
-            }
+            // İCRA DÖNGÜSÜ (Burası işlemcinin kalbidir)
+            const interval = setInterval(() => {
+                if (IP >= rom.length) { clearInterval(interval); return; }
 
-            // GÜNCELLE: Ekran kartına (VRAM) komutları yansıt
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,640,400);
-            ctx.fillStyle = "#0f0";
-            ctx.fillText("CPU REGISTER -> AX: 0x" + CPU.AX.toString(16), 50, 50);
-            ctx.fillText("INSTRUCTION POINTER (IP): 0x" + CPU.IP.toString(16), 50, 80);
-            ctx.fillText("CURRENT OPCODE: 0x" + opcode.toString(16), 50, 110);
-            
-            // Görsel efekt: İşlemci çalıştığını belli etsin
-            ctx.strokeStyle = "#ff004d";
-            ctx.strokeRect(50, 150, CPU.AX % 500, 20);
+                let opcode = rom[IP];
+                let output = `[IP:0x${IP.toString(16).toUpperCase().padStart(4, '0')}] OP:0x${opcode.toString(16).toUpperCase().padStart(2, '0')} -> `;
 
-            requestAnimationFrame(tick); // Döngüyü sürdür (JIT)
+                // KOMUT ÇÖZÜCÜ (DECODE & EXECUTE)
+                switch(opcode) {
+                    case 0x90: output += "NOP (CPU Boşta)"; break;
+                    case 0xB8: output += "MOV AX, imm16 (Register Yükle)"; IP += 2; break;
+                    case 0xEB: output += "JMP (Atla)"; break;
+                    case 0x11: output += "ADC (Topla)"; break;
+                    case 0xFF: output += "CALL (Alt Rutine Git)"; break;
+                    default:   output += "BİLİNMEYEN KOMUT (Hata)";
+                }
+
+                monitor.innerHTML += output + "\n";
+                monitor.scrollTop = monitor.scrollHeight;
+                IP++;
+            }, 50); // 50ms hızında çalıştır
         }
     </script>
 </body>
