@@ -1,56 +1,60 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>MSI Z790 Emülatör - Yürütme Birimi</title>
     <style>
         body { background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
-        #vga-display { width: 640px; height: 400px; background: #000; border: 2px solid #ff004d; }
+        canvas { border: 2px solid #ff004d; background: #000; width: 640px; height: 400px; }
+        #debug { color: #fff; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>MSI Z790 - Sanal CPU İcra Birimi</h1>
+    <h1>MSI Z790 - EKRAN KARTI & CPU İCRA BİRİMİ</h1>
     <input type="file" id="biosInput">
-    <canvas id="vga-display"></canvas>
-    <div id="status">Sistem Bekliyor...</div>
+    <canvas id="screen"></canvas>
+    <div id="debug">SİSTEM HAZIR...</div>
 
     <script>
-        const ctx = document.getElementById('vga-display').getContext('2d');
+        const canvas = document.getElementById('screen');
+        const ctx = canvas.getContext('2d');
+        let CPU = { AX: 0, IP: 0 };
         let biosData;
 
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
                 biosData = new Uint8Array(evt.target.result);
-                executeEngine();
+                // İşlemciyi Başlat
+                requestAnimationFrame(tick);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function executeEngine() {
-            let IP = 0; // Instruction Pointer
-            
-            // Grafik İcra Döngüsü
-            function tick() {
-                if (IP >= biosData.length) return;
+        function tick() {
+            if(!biosData) return;
 
-                // FETCH: Komutu getir
-                let opcode = biosData[IP];
-                
-                // DECODE & EXECUTE: Komutu işle
-                ctx.fillStyle = "#000"; ctx.fillRect(0,0,640,400);
-                ctx.fillStyle = "#ff004d";
-                ctx.fillText("İşlemci İcra Ediyor...", 20, 30);
-                ctx.fillStyle = "#0f0";
-                ctx.fillText("IP Adresi: 0x" + IP.toString(16), 20, 60);
-                ctx.fillText("Opcode: 0x" + opcode.toString(16), 20, 80);
-                
-                // Klavye/Mouse Etkileşimli Port Gözlemleme
-                // (BIOS kodları buraya yazıldığında ekran güncellenir)
-                IP++; 
-                setTimeout(tick, 100); // İşlemci hızını 100ms'ye sabitledik
+            // FETCH: Veriyi al
+            let opcode = biosData[CPU.IP];
+            
+            // EXECUTE: Komutu işle
+            if(opcode === 0xB8) { // MOV AX, imm16
+                CPU.AX = (biosData[CPU.IP+2] << 8) | biosData[CPU.IP+1];
+                CPU.IP += 3;
+            } else {
+                CPU.IP++;
             }
-            tick();
+
+            // GÜNCELLE: Ekran kartına (VRAM) komutları yansıt
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,640,400);
+            ctx.fillStyle = "#0f0";
+            ctx.fillText("CPU REGISTER -> AX: 0x" + CPU.AX.toString(16), 50, 50);
+            ctx.fillText("INSTRUCTION POINTER (IP): 0x" + CPU.IP.toString(16), 50, 80);
+            ctx.fillText("CURRENT OPCODE: 0x" + opcode.toString(16), 50, 110);
+            
+            // Görsel efekt: İşlemci çalıştığını belli etsin
+            ctx.strokeStyle = "#ff004d";
+            ctx.strokeRect(50, 150, CPU.AX % 500, 20);
+
+            requestAnimationFrame(tick); // Döngüyü sürdür (JIT)
         }
     </script>
 </body>
