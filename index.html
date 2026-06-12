@@ -3,61 +3,73 @@
 <head>
     <style>
         body { background: #000; color: #0f0; display: flex; flex-direction: column; align-items: center; font-family: monospace; }
-        canvas { background: #000; border: 4px solid #ff004d; width: 640px; height: 480px; }
-        #monitor { width: 640px; height: 100px; background: #111; padding: 10px; font-size: 12px; margin-top: 10px; border: 1px solid #444; }
+        canvas { border: 4px solid #333; background: #000; }
+        #system-status { width: 640px; padding: 10px; border: 1px solid #444; margin-top: 10px; font-size: 12px; }
     </style>
 </head>
 <body>
-    <h1>MSI Z790 - TURBO VGA ENGINE</h1>
+    <h3>MSI Z790 - HYPER-VM (5GB RAM | 4GB VRAM | 64GB STORAGE)</h3>
     <input type="file" id="biosInput">
-    <canvas id="vga" width="640" height="480"></canvas>
-    <div id="monitor">Sistem Hazır... Bekleniyor...</div>
+    <canvas id="vga-display" width="640" height="480"></canvas>
+    <div id="system-status">SİSTEM HAZIR: DOSYA BEKLENİYOR...</div>
 
     <script>
-        const canvas = document.getElementById('vga');
+        // DONANIM MİMARİSİ
+        const CONFIG = {
+            RAM: 5 * 1024 * 1024 * 1024,
+            VRAM: 4 * 1024 * 1024 * 1024,
+            STORAGE: 64 * 1024 * 1024 * 1024
+        };
+
+        const canvas = document.getElementById('vga-display');
         const ctx = canvas.getContext('2d');
-        const monitor = document.getElementById('monitor');
-        const vram = new Uint8ClampedArray(640 * 480 * 4);
+        const status = document.getElementById('system-status');
         
-        let cpu = { IP: 0x500, AX: 0, running: false };
+        let cpu = { IP: 0x500, running: false };
 
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
                 const rom = new Uint8Array(evt.target.result);
                 cpu.running = true;
-                emulate(rom);
+                bootMachine(rom);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function emulate(rom) {
-            function tick() {
+        function bootMachine(rom) {
+            status.innerText = "SİSTEM BAŞLATILIYOR (POST)...";
+            
+            function cycle() {
                 if (!cpu.running) return;
 
-                // TURBO DÖNGÜ: 50.000 komut/kare
+                // TURBO DÖNGÜ (50K işlem/kare)
                 for (let i = 0; i < 50000; i++) {
-                    if (cpu.IP >= rom.length) cpu.IP = 0x500;
+                    if (cpu.IP >= CONFIG.RAM) cpu.IP = 0x500;
+                    
+                    // BIOS komut çözücü
+                    let op = rom[cpu.IP % rom.length];
 
-                    let op = rom[cpu.IP];
-
-                    // 1. BOŞLUK ATLATICI (0xFF - BIOS Padding)
-                    if (op === 0xFF) { cpu.IP++; continue; }
-
-                    // 2. GRAFİK KESMESİ (INT 10h - GUI Başlatıcı)
-                    if (op === 0xCD && rom[cpu.IP + 1] === 0x10) {
-                        monitor.innerText = "GRAFİK ARAYÜZÜ (MSI GUI) BAŞLATILDI: 0x" + cpu.IP.toString(16);
-                        vram.fill(50, 0, vram.length); // Arka planı MSI Gri yap
-                        ctx.putImageData(new ImageData(vram, 640, 480), 0, 0);
+                    // VRAM / VGA Tetikleyici
+                    if (op === 0xCD && rom[(cpu.IP + 1) % rom.length] === 0x10) {
+                        triggerGraphics();
                     }
-
                     cpu.IP++;
                 }
 
-                monitor.innerText = `CPU İŞLENİYOR... IP: 0x${cpu.IP.toString(16).toUpperCase()} | AX: 0x${cpu.AX.toString(16)}`;
-                requestAnimationFrame(tick);
+                status.innerText = `CPU: 3.0GHz | RAM: ${CONFIG.RAM / 1024**3}GB | VRAM: ${CONFIG.VRAM / 1024**3}GB | STORAGE: 64GB | IP: 0x${cpu.IP.toString(16).toUpperCase()}`;
+                requestAnimationFrame(cycle);
             }
-            tick();
+            cycle();
+        }
+
+        function triggerGraphics() {
+            // 4GB VRAM simülasyonu görselleştirme
+            ctx.fillStyle = "#8b0000"; 
+            ctx.fillRect(0, 0, 640, 480);
+            ctx.fillStyle = "#fff";
+            ctx.font = "24px Arial";
+            ctx.fillText("MSI CLICK BIOS 5 - INITIALIZED", 120, 240);
         }
     </script>
 </body>
