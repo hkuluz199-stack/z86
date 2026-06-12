@@ -1,24 +1,25 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+    <meta charset="UTF-8">
+    <title>MSI Z790 - HYPER-VM: FULL FRAMEBUFFER ENGINE</title>
     <style>
-        body { background: #080808; display: flex; flex-direction: column; align-items: center; color: #0f0; font-family: monospace; }
-        canvas { border: 4px solid #cc0000; background: #000; image-rendering: pixelated; width: 640px; height: 480px; }
-        #status { margin-top: 10px; font-size: 11px; }
+        body { background: #050505; color: #00ff00; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        canvas { border: 4px solid #cc0000; background: #000; image-rendering: pixelated; width: 640px; height: 480px; box-shadow: 0 0 20px rgba(204, 0, 0, 0.3); }
+        #status-bar { width: 640px; margin-top: 10px; padding: 10px; background: #111; border: 1px solid #333; font-size: 12px; }
     </style>
 </head>
 <body>
     <h3>MSI Z790 - HYPER-VM: FULL FRAMEBUFFER ENGINE</h3>
     <input type="file" id="biosInput">
     <canvas id="vga-buffer" width="640" height="480"></canvas>
-    <div id="status">SİSTEM HAZIR: BIOS YÜKLENİYOR...</div>
+    <div id="status-bar">SİSTEM HAZIR: BIOS YÜKLENİYOR...</div>
 
     <script>
         const canvas = document.getElementById('vga-buffer');
         const ctx = canvas.getContext('2d');
-        const status = document.getElementById('status');
+        const status = document.getElementById('status-bar');
         
-        // 4GB VRAM Simülasyonu için 640x480x4 byte (RGBA)
         const vram = new Uint8ClampedArray(640 * 480 * 4);
         let cpu = { IP: 0x500, running: false };
 
@@ -36,25 +37,28 @@
             function update() {
                 if (!cpu.running) return;
 
-                // Turbo FrameBuffer İşleyici
-                for (let i = 0; i < 100000; i++) {
+                // 250.000 döngü: Tarayıcıyı dondurmadan maksimum veri işleme
+                for (let i = 0; i < 250000; i++) {
                     if (cpu.IP >= rom.length) cpu.IP = 0x500;
 
-                    // GERÇEK ÇİZİM MANTIĞI
-                    // Eğer BIOS, VRAM bölgesine veri yazıyorsa (Memory Mapped IO)
-                    if (cpu.IP > 0x1000 && cpu.IP < 0x2000) {
-                        let pixelIdx = (cpu.IP % (640 * 480)) * 4;
-                        vram[pixelIdx] = rom[cpu.IP]; // Red
-                        vram[pixelIdx + 1] = rom[cpu.IP + 1]; // Green
-                        vram[pixelIdx + 2] = rom[cpu.IP + 2]; // Blue
-                        vram[pixelIdx + 3] = 255; // Alpha
+                    // HİZALAMA MANTIĞI: 640x480 matrisi için x, y hesapla
+                    let pixelAddress = (cpu.IP % (640 * 480)) * 4;
+                    
+                    // BIOS verisini doğrudan VRAM'e yaz
+                    if (pixelAddress < vram.length) {
+                        vram[pixelAddress] = rom[cpu.IP];         // R
+                        vram[pixelAddress + 1] = rom[cpu.IP + 1]; // G
+                        vram[pixelAddress + 2] = rom[cpu.IP + 2]; // B
+                        vram[pixelAddress + 3] = 255;             // Alpha (Opaque)
                     }
+                    
                     cpu.IP++;
                 }
 
-                // Çerçeveyi güncelle
+                // Görüntüyü ekrana yansıt
                 ctx.putImageData(new ImageData(vram, 640, 480), 0, 0);
-                status.innerText = `IP: 0x${cpu.IP.toString(16)} | VRAM ACTIVE | STATUS: RENDERING`;
+                
+                status.innerText = `CPU BUSY | IP: 0x${cpu.IP.toString(16).toUpperCase()} | VRAM: 4GB Mapped | STATUS: RENDERING`;
                 requestAnimationFrame(update);
             }
             update();
