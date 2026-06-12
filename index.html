@@ -1,32 +1,63 @@
 <!DOCTYPE html>
-<html>
-<body style="background:#000; color:#0f0; font-family:monospace;">
-    <h1>MSI Z790 - BIOS Streaming Analyzer</h1>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>MSI Z790 - Sanal PC</title>
+    <style>
+        body { background: #0b0e14; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
+        #container { display: flex; gap: 20px; }
+        canvas { border: 2px solid #ff004d; background: #000; width: 320px; height: 200px; }
+        #table { border: 1px solid #333; padding: 10px; height: 300px; overflow-y: scroll; }
+    </style>
+</head>
+<body>
+    <h1>MSI Z790 - Sanal Donanım</h1>
     <input type="file" id="biosInput">
-    <div id="stats" style="white-space: pre; font-size: 12px;">Sistem hazır. 34MB okuma için beklemede...</div>
+    
+    <div id="container">
+        <div>
+            <h3>GPU Ekranı (VRAM)</h3>
+            <canvas id="gpu"></canvas>
+            <div id="cpu-regs">CPU: AX=0000 BX=0000 IP=0000</div>
+        </div>
+        <div id="table">
+            <h3>Opcode Tablosu</h3>
+            <div id="op-list"></div>
+        </div>
+    </div>
 
     <script>
+        const canvas = document.getElementById('gpu');
+        const ctx = canvas.getContext('2d');
+        const opList = document.getElementById('op-list');
+
+        // Opcode Tablosunu Oluştur
+        const opcodeTable = {
+            "00": "ADD (Topla)", "90": "NOP (Bekle)", 
+            "55": "PUSH BP", "C3": "RET (Dön)", 
+            "EB": "JMP (Atla)", "B8": "MOV AX"
+        };
+
+        // Tabloyu ekrana bas
+        for(let key in opcodeTable) {
+            opList.innerHTML += `<b>0x${key}</b>: ${opcodeTable[key]}<br>`;
+        }
+
         document.getElementById('biosInput').onchange = function(e) {
-            const file = e.target.files[0];
-            const stats = document.getElementById('stats');
-            
-            // Dosyanın ilk 1000 baytını oku (Belleği şişirmemek için)
-            const blob = file.slice(0, 1000); 
             const reader = new FileReader();
-            
             reader.onload = function(evt) {
                 const data = new Uint8Array(evt.target.result);
-                stats.innerText = "Dosya Boyutu: " + (file.size / 1024 / 1024).toFixed(2) + " MB\n";
-                stats.innerText += "İlk 1000 bayt analizi:\n\n";
+                // GPU: Basit bir piksel çizimi (VRAM simülasyonu)
+                ctx.fillStyle = "#ff004d";
+                ctx.fillText("SİSTEM ÇALIŞIYOR...", 10, 20);
                 
-                let output = "";
-                for(let i = 0; i < data.length; i++) {
-                    output += data[i].toString(16).toUpperCase().padStart(2, '0') + " ";
-                    if ((i + 1) % 16 === 0) output += "\n";
+                // CPU simülasyonu
+                for(let i=0; i<5; i++) {
+                    let op = data[i].toString(16).toUpperCase().padStart(2, '0');
+                    document.getElementById('cpu-regs').innerText = `CPU Fetch Adres: 0x${i} | Opcode: 0x${op}`;
                 }
-                stats.innerText += output;
             };
-            reader.readAsArrayBuffer(blob);
+            reader.readAsArrayBuffer(e.target.files[0]);
         };
     </script>
 </body>
