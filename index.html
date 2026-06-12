@@ -2,41 +2,56 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>MSI Z790 - UEFI BIOS Arayüzü</title>
+    <title>MSI Z790 Emülatör - Yürütme Birimi</title>
     <style>
-        body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        #bios-gui { width: 800px; height: 600px; background: linear-gradient(135deg, #000, #111); border: 2px solid #ff004d; border-radius: 10px; position: relative; }
-        #header { color: #ff004d; font-family: sans-serif; padding: 20px; border-bottom: 1px solid #333; }
-        #menu { color: #fff; padding: 20px; font-family: monospace; }
+        body { background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
+        #vga-display { width: 640px; height: 400px; background: #000; border: 2px solid #ff004d; }
     </style>
 </head>
 <body>
-    <input type="file" id="filePicker" style="margin-bottom:10px;">
-    
-    <div id="bios-gui">
-        <div id="header">MSI CLICK BIOS 5 - Z790</div>
-        <div id="menu">
-            [CPU] Intel Core i9-14900K<br>
-            [DRAM] 32GB DDR5 6000MHz<br>
-            [STATUS] BIOS Görüntüleyici Başarılı...<br><br>
-            > BIOS Dosyası Seçildi: <span id="fileName">Yok</span>
-        </div>
-    </div>
+    <h1>MSI Z790 - Sanal CPU İcra Birimi</h1>
+    <input type="file" id="biosInput">
+    <canvas id="vga-display"></canvas>
+    <div id="status">Sistem Bekliyor...</div>
 
     <script>
-        document.getElementById('filePicker').onchange = function(e) {
-            const file = e.target.files[0];
-            document.getElementById('fileName').innerText = file.name;
-            
-            // BIOS içindeki rastgele verileri görselleştirme (Fake Graphics)
+        const ctx = document.getElementById('vga-display').getContext('2d');
+        let biosData;
+
+        document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
-            reader.onload = function(evt) {
-                const data = new Uint8Array(evt.target.result);
-                // Burada BIOS'un grafik verilerini (pixel map) manipüle edebiliriz
-                console.log("BIOS Yükleniyor: " + data.length + " bayt.");
+            reader.onload = (evt) => {
+                biosData = new Uint8Array(evt.target.result);
+                executeEngine();
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(e.target.files[0]);
         };
+
+        function executeEngine() {
+            let IP = 0; // Instruction Pointer
+            
+            // Grafik İcra Döngüsü
+            function tick() {
+                if (IP >= biosData.length) return;
+
+                // FETCH: Komutu getir
+                let opcode = biosData[IP];
+                
+                // DECODE & EXECUTE: Komutu işle
+                ctx.fillStyle = "#000"; ctx.fillRect(0,0,640,400);
+                ctx.fillStyle = "#ff004d";
+                ctx.fillText("İşlemci İcra Ediyor...", 20, 30);
+                ctx.fillStyle = "#0f0";
+                ctx.fillText("IP Adresi: 0x" + IP.toString(16), 20, 60);
+                ctx.fillText("Opcode: 0x" + opcode.toString(16), 20, 80);
+                
+                // Klavye/Mouse Etkileşimli Port Gözlemleme
+                // (BIOS kodları buraya yazıldığında ekran güncellenir)
+                IP++; 
+                setTimeout(tick, 100); // İşlemci hızını 100ms'ye sabitledik
+            }
+            tick();
+        }
     </script>
 </body>
 </html>
