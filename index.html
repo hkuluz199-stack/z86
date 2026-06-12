@@ -1,25 +1,22 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <title>MSI Z790 - HYPER-VM: FULL FRAMEBUFFER ENGINE</title>
     <style>
-        body { background: #050505; color: #00ff00; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        canvas { border: 4px solid #cc0000; background: #000; image-rendering: pixelated; width: 640px; height: 480px; box-shadow: 0 0 20px rgba(204, 0, 0, 0.3); }
-        #status-bar { width: 640px; margin-top: 10px; padding: 10px; background: #111; border: 1px solid #333; font-size: 12px; }
+        body { background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
+        canvas { border: 2px solid #555; background: #000; }
+        #status { margin-top: 10px; color: #fff; }
     </style>
 </head>
 <body>
-    <h3>MSI Z790 - HYPER-VM: FULL FRAMEBUFFER ENGINE</h3>
+    <h3>MSI Z790 - HYPER-VM (SMART RGB MODE)</h3>
     <input type="file" id="biosInput">
-    <canvas id="vga-buffer" width="640" height="480"></canvas>
-    <div id="status-bar">SİSTEM HAZIR: BIOS YÜKLENİYOR...</div>
+    <canvas id="vm-canvas" width="640" height="480"></canvas>
+    <div id="status">GPU STATUS: WAITING FOR COMMAND...</div>
 
     <script>
-        const canvas = document.getElementById('vga-buffer');
+        const canvas = document.getElementById('vm-canvas');
         const ctx = canvas.getContext('2d');
-        const status = document.getElementById('status-bar');
-        
+        const status = document.getElementById('status');
         const vram = new Uint8ClampedArray(640 * 480 * 4);
         let cpu = { IP: 0x500, running: false };
 
@@ -28,40 +25,46 @@
             reader.onload = (evt) => {
                 const rom = new Uint8Array(evt.target.result);
                 cpu.running = true;
-                runFullVM(rom);
+                initSmartVM(rom);
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function runFullVM(rom) {
-            function update() {
+        function initSmartVM(rom) {
+            function loop() {
                 if (!cpu.running) return;
 
-                // 250.000 döngü: Tarayıcıyı dondurmadan maksimum veri işleme
-                for (let i = 0; i < 250000; i++) {
+                for (let i = 0; i < 50000; i++) {
                     if (cpu.IP >= rom.length) cpu.IP = 0x500;
 
-                    // HİZALAMA MANTIĞI: 640x480 matrisi için x, y hesapla
-                    let pixelAddress = (cpu.IP % (640 * 480)) * 4;
-                    
-                    // BIOS verisini doğrudan VRAM'e yaz
-                    if (pixelAddress < vram.length) {
-                        vram[pixelAddress] = rom[cpu.IP];         // R
-                        vram[pixelAddress + 1] = rom[cpu.IP + 1]; // G
-                        vram[pixelAddress + 2] = rom[cpu.IP + 2]; // B
-                        vram[pixelAddress + 3] = 255;             // Alpha (Opaque)
+                    // AKILLI GPU: Sadece INT 10h gelince tetiklen
+                    if (rom[cpu.IP] === 0xCD && rom[cpu.IP + 1] === 0x10) {
+                        renderRGBFrame(rom, cpu.IP);
+                        status.innerText = "GPU STATUS: RENDERING RGB FRAME...";
                     }
-                    
                     cpu.IP++;
                 }
-
-                // Görüntüyü ekrana yansıt
-                ctx.putImageData(new ImageData(vram, 640, 480), 0, 0);
-                
-                status.innerText = `CPU BUSY | IP: 0x${cpu.IP.toString(16).toUpperCase()} | VRAM: 4GB Mapped | STATUS: RENDERING`;
-                requestAnimationFrame(update);
+                requestAnimationFrame(loop);
             }
-            update();
+            loop();
+        }
+
+        // SADECE RGB İŞLEYEN RENDERER
+        function renderRGBFrame(rom, startAddr) {
+            let dataOffset = startAddr + 0x200; // BIOS grafik verisinin başlangıcı
+            
+            for (let i = 0; i < (640 * 480); i++) {
+                let pixelIdx = i * 4;
+                let romIdx = dataOffset + (i * 3);
+
+                if (romIdx + 2 < rom.length) {
+                    vram[pixelIdx] = rom[romIdx];     // R
+                    vram[pixelIdx + 1] = rom[romIdx + 1]; // G
+                    vram[pixelIdx + 2] = rom[romIdx + 2]; // B
+                    vram[pixelIdx + 3] = 255;         // Alpha
+                }
+            }
+            ctx.putImageData(new ImageData(vram, 640, 480), 0, 0);
         }
     </script>
 </body>
