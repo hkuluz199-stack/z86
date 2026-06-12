@@ -1,24 +1,25 @@
 window.onload = function() {
-    const canvas = document.getElementById('screen');
-    const logEl = document.getElementById('console');
-    function log(m) { logEl.innerText += "> " + m + "\n"; }
+    const output = document.getElementById('output');
+    const btn = document.getElementById('startBtn');
 
-    // Klavye Girdisi
-    document.addEventListener('keydown', (e) => {
-        log("Tuşa basıldı: " + e.key + " (Kod: " + e.keyCode + ")");
-        // BIOS'un klavye portuna (0x60) veri gönder
-    });
+    btn.onclick = function() {
+        const fileInput = document.getElementById('biosInput');
+        if (!fileInput.files[0]) { alert("BIOS dosyası seç!"); return; }
 
-    // Mouse Girdisi
-    canvas.addEventListener('mousemove', (e) => {
-        let rect = canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        let y = e.clientY - rect.top;
-        // Mouse koordinatlarını BIOS'a gönder
-    });
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const biosData = new Uint8Array(e.target.result);
+            output.innerHTML = "BIOS boyutu: " + biosData.length + " bayt.<br>";
 
-    // Başlatma
-    document.getElementById('btn').onclick = function() {
-        log("Emülatör başlatıldı. Ekrana tıkla ve klavyeyi kullan!");
+            // İşlemci Döngüsü (BIOS'un ilk 256 baytını analiz et)
+            for (let i = 0; i < 256; i++) {
+                let opcode = biosData[i];
+                let hex = opcode.toString(16).toUpperCase().padStart(2, '0');
+                
+                output.innerHTML += `Adres: 0x${i.toString(16).toUpperCase().padStart(4, '0')} | Opcode: 0x${hex}<br>`;
+            }
+            output.innerHTML += "--- Analiz Tamamlandı ---";
+        };
+        reader.readAsArrayBuffer(fileInput.files[0]);
     };
 };
