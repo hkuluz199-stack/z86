@@ -1,31 +1,32 @@
 <!DOCTYPE html>
 <html>
 <body style="background:#000; color:#0f0; font-family:monospace;">
-    <h1>MSI Z790 - BIOS Analyzer (32MB Destekli)</h1>
+    <h1>MSI Z790 - BIOS Streaming Analyzer</h1>
     <input type="file" id="biosInput">
-    <div id="stats" style="white-space: pre;">Dosya seç ve oku...</div>
+    <div id="stats" style="white-space: pre; font-size: 12px;">Sistem hazır. 34MB okuma için beklemede...</div>
 
     <script>
         document.getElementById('biosInput').onchange = function(e) {
             const file = e.target.files[0];
+            const stats = document.getElementById('stats');
+            
+            // Dosyanın ilk 1000 baytını oku (Belleği şişirmemek için)
+            const blob = file.slice(0, 1000); 
             const reader = new FileReader();
             
             reader.onload = function(evt) {
                 const data = new Uint8Array(evt.target.result);
-                const stats = document.getElementById('stats');
-                
-                // 32MB dosyayı tamamen ekrana basarsan tarayıcı çöker.
-                // Sadece ilk 500 satırı gösteriyoruz.
-                stats.innerText = "Dosya Boyutu: " + (data.length / 1024 / 1024).toFixed(2) + " MB\n\n";
+                stats.innerText = "Dosya Boyutu: " + (file.size / 1024 / 1024).toFixed(2) + " MB\n";
+                stats.innerText += "İlk 1000 bayt analizi:\n\n";
                 
                 let output = "";
-                for(let i = 0; i < 500; i++) {
-                    let hex = data[i].toString(16).toUpperCase().padStart(2, '0');
-                    output += "Adres 0x" + i.toString(16).toUpperCase().padStart(5, '0') + ": 0x" + hex + "\n";
+                for(let i = 0; i < data.length; i++) {
+                    output += data[i].toString(16).toUpperCase().padStart(2, '0') + " ";
+                    if ((i + 1) % 16 === 0) output += "\n";
                 }
                 stats.innerText += output;
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(blob);
         };
     </script>
 </body>
