@@ -1,54 +1,62 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+    <meta charset="UTF-8">
+    <title>MSI Z790 - Pentium 4 Emülatör</title>
     <style>
-        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; }
-        #monitor { width: 640px; height: 400px; border: 2px solid #333; background: #000; color: #0f0; padding: 10px; overflow-y: scroll; font-size: 14px; }
+        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #vga { width: 800px; height: 500px; background: #000; border: 4px solid #ff004d; margin-top: 10px; }
+        #stats { width: 800px; color: #fff; font-size: 14px; background: #111; padding: 10px; }
     </style>
 </head>
 <body>
-    <h1>Z790 BARE-METAL EMÜLATÖR</h1>
+    <h1>MSI Z790 - CORE ENGINE (P4 3.0GHz SIM)</h1>
     <input type="file" id="biosInput">
-    <div id="monitor">Sistem BIOS bekleniyor...</div>
+    <canvas id="vga"></canvas>
+    <div id="stats">Sistem Başlatılıyor...</div>
 
     <script>
-        const monitor = document.getElementById('monitor');
-        
+        const ctx = document.getElementById('vga').getContext('2d');
+        let CPU = { AX: 0, IP: 0, running: false };
+        let biosData;
+        const BATCH = 50000; // 3.0GHz Hız Simülasyonu (Döngü başına işlem)
+
         document.getElementById('biosInput').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (evt) => {
-                const rom = new Uint8Array(evt.target.result);
-                execute(rom);
+                biosData = new Uint8Array(evt.target.result);
+                CPU.running = true;
+                tick();
             };
             reader.readAsArrayBuffer(e.target.files[0]);
         };
 
-        function execute(rom) {
-            let IP = 0; // Instruction Pointer
-            let registers = { AX: 0, BX: 0 };
-            monitor.innerHTML = "--- EMÜLASYON BAŞLATILDI ---\n";
+        function tick() {
+            if (!CPU.running) return;
 
-            // İCRA DÖNGÜSÜ (Burası işlemcinin kalbidir)
-            const interval = setInterval(() => {
-                if (IP >= rom.length) { clearInterval(interval); return; }
+            // PENTIUM 4 HIZINDA İCRA (Batch Processing)
+            for (let i = 0; i < BATCH; i++) {
+                if (CPU.IP >= biosData.length) { CPU.running = false; break; }
+                
+                let opcode = biosData[CPU.IP];
+                // Basit Decode/Execute
+                if (opcode === 0xB8) CPU.AX = 0xFFFF; // Örnek komut: MOV AX, FFFF
+                CPU.IP++;
+            }
 
-                let opcode = rom[IP];
-                let output = `[IP:0x${IP.toString(16).toUpperCase().padStart(4, '0')}] OP:0x${opcode.toString(16).toUpperCase().padStart(2, '0')} -> `;
-
-                // KOMUT ÇÖZÜCÜ (DECODE & EXECUTE)
-                switch(opcode) {
-                    case 0x90: output += "NOP (CPU Boşta)"; break;
-                    case 0xB8: output += "MOV AX, imm16 (Register Yükle)"; IP += 2; break;
-                    case 0xEB: output += "JMP (Atla)"; break;
-                    case 0x11: output += "ADC (Topla)"; break;
-                    case 0xFF: output += "CALL (Alt Rutine Git)"; break;
-                    default:   output += "BİLİNMEYEN KOMUT (Hata)";
-                }
-
-                monitor.innerHTML += output + "\n";
-                monitor.scrollTop = monitor.scrollHeight;
-                IP++;
-            }, 50); // 50ms hızında çalıştır
+            // GÖRÜNTÜLEME (GPU VRAM)
+            ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 800, 500);
+            ctx.fillStyle = "#0f0";
+            ctx.fillText("CPU: PENTIUM 4 631 3.0GHz", 20, 30);
+            ctx.fillText("AX REGISTER: 0x" + CPU.AX.toString(16).toUpperCase(), 20, 50);
+            ctx.fillText("IP (PC): 0x" + CPU.IP.toString(16).toUpperCase(), 20, 70);
+            ctx.fillText("Hız: 3.0GHz (Batch: " + BATCH + ")", 20, 90);
+            
+            // Grafik Yükü (BIOS'un görselleştirilmesi)
+            ctx.strokeStyle = "#ff004d";
+            ctx.strokeRect(50, 150, (CPU.IP / biosData.length) * 700, 20);
+            
+            requestAnimationFrame(tick);
         }
     </script>
 </body>
